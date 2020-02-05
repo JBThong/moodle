@@ -96,10 +96,16 @@ class tool_dataprivacy_data_request_form extends \core\form\persistent {
         $mform->setType('userid', PARAM_INT);
 
         // Subject access request type.
-        $options = [
-            api::DATAREQUEST_TYPE_EXPORT => get_string('requesttypeexport', 'tool_dataprivacy'),
-            api::DATAREQUEST_TYPE_DELETE => get_string('requesttypedelete', 'tool_dataprivacy')
-        ];
+        $allowfiltering = get_config('tool_dataprivacy', 'allowfiltering');
+        $options = [];
+
+        if ($allowfiltering) {
+            $options[api::DATAREQUEST_TYPE_EXPORT] = get_string('requesttypeexportallowfiltering', 'tool_dataprivacy');
+        } else {
+            $options[api::DATAREQUEST_TYPE_EXPORT] = get_string('requesttypeexport', 'tool_dataprivacy');
+        }
+
+        $options[api::DATAREQUEST_TYPE_DELETE] = get_string('requesttypedelete', 'tool_dataprivacy');
 
         $mform->addElement('select', 'type', get_string('requesttype', 'tool_dataprivacy'), $options);
         $mform->addHelpButton('type', 'requesttype', 'tool_dataprivacy');

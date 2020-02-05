@@ -26,6 +26,7 @@ use core\invalid_persistent_exception;
 use core\task\manager;
 use tool_dataprivacy\context_instance;
 use tool_dataprivacy\api;
+use tool_dataprivacy\contextlist_context;
 use tool_dataprivacy\data_registry;
 use tool_dataprivacy\expired_context;
 use tool_dataprivacy\data_request;
@@ -2389,5 +2390,75 @@ class tool_dataprivacy_api_testcase extends advanced_testcase {
         }
 
         $this->assertEquals($expected, api::is_automatic_request_approval_on($type));
+    }
+
+    /**
+     * Test approve part of context list before export if filtering of exports by course is allowed.
+     *
+     * @throws moodle_exception
+     */
+    public function test_approve_contexts_belonging_to_request(): void {
+        global $DB, $USER;
+        set_config('allowfiltering', 1, 'tool_dataprivacy');
+        $this->resetAfterTest();
+        $this->setAdminUser();
+
+        $user = $this->getDataGenerator()->create_user();
+
+        $course = $this->getDataGenerator()->create_course([]);
+        $course2 = $this->getDataGenerator()->create_course([]);
+
+        $forum = $this->getDataGenerator()->create_module('forum', ['course' => $course->id]);
+        $forum2 = $this->getDataGenerator()->create_module('forum', ['course' => $course2->id]);
+
+        $generator = $this->getDataGenerator()->get_plugin_generator('mod_forum');
+
+        $record = new stdClass();
+        $record->course = $course->id;
+        $record->userid = $user->id;
+        $record->forum = $forum->id;
+        $generator->create_discussion($record);
+
+        $record->course = $course2->id;
+        $record->forum = $forum2->id;
+        $generator->create_discussion($record);
+
+        $coursecontext1 = context_course::instance($course->id);
+        $coursecontext2 = context_course::instance($course2->id);
+
+        $forumcontext1 = context_module::instance($forum->cmid);
+        $forumcontext2 = context_module::instance($forum2->cmid);
+
+        $this->getDataGenerator()->enrol_user($user->id, $course->id, 'student');
+        $this->getDataGenerator()->enrol_user($user->id, $course2->id, 'student');
+
+        $datarequest = api::create_data_request($user->id, api::DATAREQUEST_TYPE_EXPORT);
+
+        ob_start();
+        $this->runAdhocTasks('tool_dataprivacy\task\initiate_data_request_task');
+        ob_end_clean();
+
+        $contextcount = $DB->count_records('tool_dataprivacy_ctxlst_ctx');
+        api::approve_contexts_belonging_to_request($datarequest->get('id'), [$coursecontext1->id]);
+        $items = $DB->get_records('tool_dataprivacy_ctxlst_ctx',  null, '', 'id, contextid, status');
+
+        $approvecontexts = [];
+        $rejectedcontext = [];
+        foreach ($items as $item) {
+            if ($item->status == contextlist_context::STATUS_APPROVED) {
+                $approvecontexts[] = $item->contextid;
+            }
+            if ($item->status == contextlist_context::STATUS_REJECTED) {
+                $rejectedcontext[] = $item->contextid;
+            }
+        }
+
+        // Check no pending context left.
+        $this->assertEquals($contextcount, count($approvecontexts) + count($rejectedcontext));
+
+        $this->assertContains($coursecontext1->id, $approvecontexts);
+        $this->assertContains($forumcontext1->id, $approvecontexts);
+        $this->assertContains($coursecontext2->id, $rejectedcontext);
+        $this->assertContains($forumcontext2->id, $rejectedcontext);
     }
 }

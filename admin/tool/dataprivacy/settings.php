@@ -90,6 +90,12 @@ if ($hassiteconfig) {
             new lang_string('showdataretentionsummary', 'tool_dataprivacy'),
             new lang_string('showdataretentionsummary_desc', 'tool_dataprivacy'),
             1));
+
+        // Whether to allow PO to select courses for data export, instead of always exporting all data.
+        $privacysettings->add(new admin_setting_configcheckbox('tool_dataprivacy/allowfiltering',
+            new lang_string('allowfiltering', 'tool_dataprivacy'),
+            new lang_string('allowfiltering_desc', 'tool_dataprivacy'),
+            0));
     }
 }
 

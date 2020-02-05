@@ -364,6 +364,88 @@ class external extends external_api {
     }
 
     /**
+     * Parameter description for get_data_request().
+     *
+     * @return external_function_parameters
+     */
+    public static function submit_selected_courses_form_parameters(): external_function_parameters {
+        return new external_function_parameters([
+            'requestid' => new external_value(PARAM_INT, 'The id of data request'),
+            'jsonformdata' => new external_value(PARAM_RAW, 'The data of selected courses form, encoded as a json array')
+        ]);
+    }
+
+    /**
+     * Fetch the list of course which user can select to export data.
+     *
+     * @param int $requestid The request ID.
+     * @param string $jsonformdata The data of selected courses form.
+     * @return array
+     * @throws moodle_exception
+     */
+    public static function submit_selected_courses_form(int $requestid, string $jsonformdata): array {
+
+        $warnings = [];
+        $result = false;
+        $params = external_api::validate_parameters(self::submit_selected_courses_form_parameters(), [
+            'requestid' => $requestid,
+            'jsonformdata' => $jsonformdata
+        ]);
+
+        $context = context_system::instance();
+        self::validate_context($context);
+
+        // Make sure the user has the proper capability.
+        require_capability('tool/dataprivacy:managedatarequests', $context);
+
+        $requestid = $params['requestid'];
+        $serialiseddata = json_decode($params['jsonformdata']);
+        $data = array();
+        parse_str($serialiseddata, $data);
+
+        $mform = new \tool_dataprivacy\form\exportfilter_form(null, ['requestid' => $requestid], 'post', '', null, true, $data);
+
+        $validateddata = $mform->get_data();
+        if ($validateddata) {
+            // Ensure the request exists.
+            $requestexists = \tool_dataprivacy\data_request::record_exists($requestid);
+
+            if ($requestexists) {
+                $coursecontextids = [];
+                if (!empty($validateddata->coursecontextids)) {
+                    $coursecontextids = $validateddata->coursecontextids;
+                }
+                $result = \tool_dataprivacy\api::approve_data_request($requestid, $coursecontextids);
+
+                // Add notification in the session to be shown when the page is reloaded on the JS side.
+                notification::success(get_string('requestapproved', 'tool_dataprivacy'));
+            } else {
+                $warnings = [
+                    'item' => $requestid,
+                    'warningcode' => 'errorrequestnotfound',
+                    'message' => get_string('errorrequestnotfound', 'tool_dataprivacy')
+                ];
+            }
+        }
+        return [
+            'result' => $result,
+            'warnings' => $warnings
+        ];
+    }
+
+    /**
+     * Parameter description for submit_selected_courses_form().
+     *
+     * @return external_description
+     */
+    public static function submit_selected_courses_form_returns(): external_description {
+        return new external_single_structure([
+            'result' => new external_value(PARAM_BOOL, 'The processing result'),
+            'warnings' => new external_warnings()
+        ]);
+    }
+
+    /**
      * Parameter description for approve_data_request().
      *
      * @since Moodle 3.5
