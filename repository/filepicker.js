@@ -1352,7 +1352,9 @@ M.core_filepicker.init = function(Y, options) {
                 width        : width+'px',
                 responsiveWidth : 768,
                 height       : '558px',
-                zIndex       : this.options.zIndex
+                zIndex       : this.options.zIndex,
+                focusOnPreviousTargetAfterHide: true,
+                focusAfterHide: this.options.previousActiveElement
             });
 
             // create panel for selecting a file (initially hidden)
