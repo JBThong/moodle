@@ -33,6 +33,9 @@
 #page-report-progress-index .completion-progresscell {
     text-align: center;
 }
+#page-report-progress-index form#sort-select-report {
+    margin-bottom: 15px;
+}
 
 /* Custom CSS for rotated header.. */
 #page-report-progress-index .rotated-text-container {

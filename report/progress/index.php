@@ -40,6 +40,9 @@ $context = context_course::instance($course->id);
 $sort = optional_param('sort','',PARAM_ALPHA);
 $firstnamesort = $sort == 'firstname';
 
+// Sort (default by order, optionally by name).
+$sortby = optional_param('sort_by', '', PARAM_INT);
+
 // CSV format
 $format = optional_param('format','',PARAM_ALPHA);
 $excel = $format == 'excelcsv';
@@ -65,6 +68,9 @@ function csv_quote($value) {
 }
 
 $url = new moodle_url('/report/progress/index.php', array('course'=>$id));
+if ($sortby !== '') {
+    $url->param('sort_by', $sortby);
+}
 if ($sort !== '') {
     $url->param('sort', $sort);
 }
@@ -265,7 +271,10 @@ if ($total > COMPLETION_REPORT_PAGE) {
 }
 
 // Okay, let's draw the table of progress info,
-
+// Render menu sorting.
+$url = $CFG->wwwroot.'/report/progress/index.php?course='.$course->id;
+$srt = new \report_progress\output\report_progress_sorting();
+echo $srt->render_sorting_filter($url, $sortby);
 // Start of table
 if (!$csv) {
     print '<br class="clearer"/>'; // ugh
@@ -308,7 +317,10 @@ if (!$csv) {
     }
 }
 
-// Activities
+// Sort the activities.
+if ($sortby) {
+    $srt->sort_activities($activities, $sortby);
+}
 $formattedactivities = array();
 foreach($activities as $activity) {
     $datepassed = $activity->completionexpected && $activity->completionexpected <= time();
